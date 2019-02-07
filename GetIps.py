@@ -1,5 +1,3 @@
-#!/bin/python3
-
 import boto3
 
 # Set the role name you intend to use across linked accounts
