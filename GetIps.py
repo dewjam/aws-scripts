@@ -26,6 +26,7 @@ def getRoleARN(account):
     role = 'arn:aws:iam::' + account + ':role/' + role_name
     return role
 
+# Assume role to get credentials
 def assumeRole(account):
     client = boto3.client('sts').assume_role(RoleArn=getRoleARN(account), RoleSessionName='ipListSession')
     return client['Credentials']
