@@ -13,7 +13,8 @@ def getAccounts():
     org = boto3.client('organizations')
     accounts = []
     for i in org.list_accounts()['Accounts']:
-        accounts.append(i['Id'])
+        if i['Status'] == 'ACTIVE':
+            accounts.append(i['Id'])
     return accounts
 
 # List all regions for which a service is available
@@ -32,12 +33,10 @@ def assumeRole(account):
     return client['Credentials']
 
 # Get all ENIs from the account and append them to the ipList array
-def getENIs(account):
+def getEC2(account, credentials):
     regions = getRegions('ec2')
     # Loop through available regions and get all ENIs
     for r in regions:
-        # Get temp credentials for the role you are assuming
-        credentials = assumeRole(account)
         # Here we create a client for the appropriate region and set the Credentials we are using
         ec2_resource=boto3.client(
             'ec2',
@@ -46,20 +45,25 @@ def getENIs(account):
             aws_session_token=credentials['SessionToken'],
             region_name=r
             )
-        # Here we get the actual ENI details using the client we created
+        # Here we get the actual ENI details using the client we just created
         interfaces = ec2_resource.describe_network_interfaces()
-        # Here we're just filtering out ENIs which don't have public IP associated
-        if 'NetworkInterfaces' in interfaces:
-            for i in interfaces['NetworkInterfaces']:
-                if 'Association' in i:
-                    ipList.append(i['Association']['PublicIp'])
-
+        # Here we're filtering out ENIs which don't have public IP associated and writing to the ipList array
+        for i in interfaces['NetworkInterfaces']:
+            if 'Association' in i:
+                ipList.append({'accountId': account,
+                'region': r,
+                'address': i['Association']['PublicIp']}
+                )
 
 # Get all accounts from the Organization API (using local access key/secret key to access the API)
 accountList = getAccounts()
 
 # Loop through all accounts and get IPs associated with resources
 for i in accountList:
-    getENIs(i)
+    print("Getting ENIs for account", i)
+    # Get temp credentials for the role you are assuming
+    credentials = assumeRole(i)
+    # Get IPs and append them to the list
+    getEC2(i, credentials)
 
 print(ipList)
